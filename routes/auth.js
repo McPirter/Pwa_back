@@ -88,6 +88,60 @@ router.get('/users', async (req, res) => {
   }
 });
 
+// POST /api/login - Inicio de sesión
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Validaciones básicas
+    if (!email || !password) {
+      return res.status(400).json({
+        message: 'Email y contraseña son obligatorios',
+        status: 'error'
+      });
+    }
+
+    // Buscar usuario por email
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json({
+        message: 'Credenciales inválidas',
+        status: 'error'
+      });
+    }
+
+    // Verificar contraseña
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        message: 'Credenciales inválidas',
+        status: 'error'
+      });
+    }
+
+    // Respuesta exitosa (sin incluir la contraseña)
+    res.json({
+      message: 'Login exitoso',
+      status: 'success',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role,
+        createdAt: user.createdAt
+      }
+    });
+
+  } catch (error) {
+    console.error('Error en login:', error);
+    res.status(500).json({
+      message: 'Error interno del servidor',
+      status: 'error'
+    });
+  }
+});
+
 // GET /api/user/:id - Obtener usuario por ID
 router.get('/user/:id', async (req, res) => {
   try {

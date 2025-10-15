@@ -1,7 +1,16 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const webpush = require('web-push');
 require('dotenv').config();
+
+// Configurar web-push con las keys
+const keys = require('./keys.json');
+webpush.setVapidDetails(
+  'mailto:tu-email@ejemplo.com', // Email de contacto
+  keys.publicKey,
+  keys.privateKey
+);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +35,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Rutas
 app.use('/api', require('./routes/auth'));
+app.use('/api/notifications', require('./routes/notifications'));
 
 // Ruta de prueba
 app.get('/', (req, res) => {
