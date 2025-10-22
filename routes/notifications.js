@@ -129,4 +129,76 @@ router.get('/public-key', (req, res) => {
   });
 });
 
+// POST /api/notifications/send-to-user - Enviar notificación personalizada a un usuario
+router.post('/send-to-user', async (req, res) => {
+  try {
+    const { userId, title, body, icon, url } = req.body;
+
+    // Validar datos básicos
+    if (!userId) {
+      return res.status(400).json({
+        message: 'El campo userId es obligatorio',
+        status: 'error'
+      });
+    }
+
+    // Validar formato de ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({
+        message: 'El userId no es un ObjectId válido',
+        status: 'error'
+      });
+    }
+
+    // Buscar usuario y su suscripción
+    const user = await User.findById(userId);
+    if (!user || !user.pushSubscription) {
+      return res.status(404).json({
+        message: 'Usuario no encontrado o sin suscripción activa',
+        status: 'error'
+      });
+    }
+
+    // Construir notificación personalizada
+    const payload = JSON.stringify({
+      title: title || `Hola ${user.name || 'usuario'} 👋`,
+      body: body || 'Tienes una nueva notificación.',
+      icon: icon || '/neko.png',
+      url: url || '/',
+      badge: '/neko-512.png'
+    });
+
+    // Enviar notificación push
+    await webpush.sendNotification(user.pushSubscription, payload);
+
+    res.json({
+      message: `Notificación enviada al usuario ${user.name || user.email}`,
+      status: 'success'
+    });
+
+  } catch (error) {
+    console.error('Error enviando notificación personalizada:', error);
+
+    // Si la suscripción es inválida, limpiarla
+    if (error.statusCode === 410) {
+      try {
+        const user = await User.findById(req.body.userId);
+        if (user) {
+          user.pushSubscription = null;
+          await user.save();
+          console.log(`Suscripción inválida eliminada para ${user.email}`);
+        }
+      } catch (cleanupError) {
+        console.error('Error limpiando suscripción inválida:', cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      message: 'Error enviando la notificación al usuario',
+      status: 'error'
+    });
+  }
+});
+
+
 module.exports = router;
